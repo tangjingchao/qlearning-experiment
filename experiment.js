@@ -93,6 +93,7 @@ const state = {
   ratings: [],
   ratingLookup: {}, // image -> rating value
   trials: [],
+  allTrials: [],
   trialIndex: -1,
   runInfo: null,
   keyMap: {},
@@ -272,6 +273,7 @@ function initRound() {
     alert("请先输入被试编号 (Participant ID)");
     return false;
   }
+  state.participantId = participantId;
   const sessionLabelUser = $("session-label").value.trim() || "session-1";
   const roundCfg = state.schedule[state.currentRoundIdx];
   const keyMap = assignKeys(roundCfg.groupIds);
@@ -290,6 +292,7 @@ function initRound() {
   state.trialIndex = 0;
   state.keyMap = keyMap;
   state.waitingForResponse = false;
+  // reset current-round data only; keep allTrials to accumulate across rounds
   $("progress-bar").style.width = "0%";
   statusLine(`Round ${roundCfg.round} (${roundCfg.difficulty}, p=${roundCfg.pCorrect}) running...`);
   roundLine();
@@ -328,7 +331,7 @@ function handleChoice(side, source = "key") {
   const likingCode = likingCodeFromRating(t.image, t.liking);
   const likingRate = getRatingValue(t.image);
 
-  state.trials[state.trialIndex] = {
+  const enriched = {
     ...t,
     responseSide: side,
     responseSource: source,
@@ -343,6 +346,8 @@ function handleChoice(side, source = "key") {
     likingCode,
     likingRate
   };
+  state.trials[state.trialIndex] = enriched;
+  state.allTrials.push(enriched);
   $("feedback").textContent = feedbackPositive ? "正确 / Correct" : "错误 / Wrong";
   state.waitingForResponse = false;
 
@@ -383,12 +388,12 @@ function downloadFile(content, filename) {
 }
 
 function downloadData() {
-  if (state.trials.length === 0) {
+  if (state.allTrials.length === 0) {
     alert("没有 trial 数据可导出。请先运行实验。");
     return;
   }
   const baseRow = () => ({
-    subj_id: state.runInfo.participantId,
+    subj_id: state.participantId || state.runInfo?.participantId || "",
     round: "", // 第几轮
     difficulty_round: "", // easy=0, hard=1
     state: "", // 刺激/图片的 ID
@@ -401,7 +406,7 @@ function downloadData() {
     timestamp: "" // trial 时间戳
   });
 
-  const behaviorRows = state.trials
+  const behaviorRows = state.allTrials
     .filter((t) => t.responseSide)
     .map((t) => ({
       ...baseRow(),
@@ -419,8 +424,8 @@ function downloadData() {
 
   const allRows = behaviorRows;
   if (allRows.length > 0) {
-    downloadFile(toCSV(allRows), `subj-${state.runInfo.participantId}-all.csv`);
-    statusLine("数据已导出（单一合并文件）。");
+    downloadFile(toCSV(allRows), `subj-${state.participantId || state.runInfo?.participantId}-all.csv`);
+    statusLine("数据已导出（已包含已完成的所有轮次）。");
   } else {
     alert("暂无可导出的数据。");
   }
