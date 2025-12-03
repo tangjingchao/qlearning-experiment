@@ -28,14 +28,14 @@
 <body>
   <h1 style="display:flex; justify-content:space-between; align-items:center;">
     <span>概率性强化学习实验（Liking × 难度）</span>
-    <span class="pill">四轮固定：90@0.9 → 90@0.7 → 120@0.9 → 120@0.7</span>
+    <span class="pill">二轮固定：90@0.9 → 120@0.7</span>
   </h1>
 
   <div class="panel">
     <div class="row">
       <div>
         <label for="participant-id">被试编号 / Participant ID</label>
-        <input id="participant-id" placeholder="e.g., P001">
+        <input id="participant-id" placeholder="e.g., Your name">
       </div>
       <div>
         <label for="session-label">实验批次标签（可选）</label>
@@ -94,7 +94,7 @@
       <li>第一阶段中给图片打分根据你看到图片时的心情而定，请尽量真实反映你的感受，最好做出区分，少打5分（中立），否则为无效数据</li>
       <li>第二阶段中，每一类图片都对应着按键左或者按键右（举例：小狗图片对应按键左，酒精图片对对应按键右，每个round的赋值都是随机的）被试者要根据选择按键之后的反馈猜测自己的作答是否正确（左键：←；右键：→）。</li>
       <li>看到图片进行按键，系统会给出“正确/错误”反馈，系统的反馈存在一定的迷惑性，系统给出反馈的概率与本轮次难度相关，为0.9（简单）或0.7（困难）。</li>
-      <li>共 4 轮：第1/3轮反馈更可靠（90%），第2/4轮反馈较不稳定（70%），第3/4轮组别更多，任务更困难。每轮结束会自动提示，可再开始下一轮。</li>
+      <li>共 2 轮：第1轮反馈更可靠（90%反馈准确率），第2轮反馈较不稳定（70%准确率）。每轮结束会自动提示，可再开始下一轮。</li>
       <li>完成全部轮次后，请点击“下载数据 (CSV)”保存结果并通知实验员。</li>
     </ol>
   </div>

@@ -186,6 +186,7 @@ function showNextRating() {
 function submitRating() {
   if (state.ratingIndex >= state.ratingQueue.length) return;
   const item = state.ratingQueue[state.ratingIndex];
+  const sliderValue = Number($("rating-slider").value);
   state.ratings.push({
     participantId: $("participant-id").value || "",
     sessionLabel: $("session-label").value || "",
@@ -193,9 +194,10 @@ function submitRating() {
     groupLabel: item.label,
     likingLabel: item.liking,
     image: item.image,
-    rating: Number($("rating-slider").value),
+    rating: sliderValue,
     timestamp: Date.now()
   });
+  state.ratingLookup[item.image] = sliderValue; // keep lookup updated even before rating stage finishes
   state.ratingIndex += 1;
   showNextRating();
 }
@@ -241,14 +243,20 @@ function buildTrialsForRound(roundCfg) {
   }));
 }
 
-function likingFromRating(imagePath, defaultLiking) {
+function getRatingValue(imagePath) {
+  const rating = state.ratingLookup[imagePath];
+  return rating === undefined ? "" : rating;
+}
+
+function likingCodeFromRating(imagePath, defaultLiking) {
   const rating = state.ratingLookup[imagePath];
   if (rating === undefined) {
-    return defaultLiking === "high" ? 1 : 0;
+    if (!defaultLiking) return "";
+    return defaultLiking === "high" ? "L" : "D";
   }
-  if (rating > 5) return 1;
-  if (rating < 5) return 0;
-  return ""; // rating == 5, mark empty for filtering
+  if (rating > 5) return "L";
+  if (rating < 5) return "D";
+  return "N"; // rating == 5 is neutral
 }
 
 function initRound() {
@@ -317,7 +325,8 @@ function handleChoice(side, source = "key") {
   const feedbackPositive = Math.random() < (isCorrectChoice ? pCorrect : 1 - pCorrect);
   const rt = Math.round(performance.now() - state.trialStartTime);
 
-  const likingBin = likingFromRating(t.image, t.liking);
+  const likingCode = likingCodeFromRating(t.image, t.liking);
+  const likingRate = getRatingValue(t.image);
 
   state.trials[state.trialIndex] = {
     ...t,
@@ -331,7 +340,8 @@ function handleChoice(side, source = "key") {
     stateId: imageStateMap[t.image],
     action: side === "left" ? 0 : 1,
     reward: feedbackPositive ? 1 : 0,
-    likingBin
+    likingCode,
+    likingRate
   };
   $("feedback").textContent = feedbackPositive ? "正确 / Correct" : "错误 / Wrong";
   state.waitingForResponse = false;
@@ -378,70 +388,36 @@ function downloadData() {
     return;
   }
   const baseRow = () => ({
-    record_type: "",
     subj_id: state.runInfo.participantId,
-    sessionLabel: state.runInfo.sessionLabel,
-    sessionLabelUser: state.runInfo.sessionLabelUser || "",
-    round: "",
-    trial_in_round: "",
-    difficulty_round: "",
-    difficulty: "",
-    state: "",
-    groupId: "",
-    groupLabel: "",
-    liking_group: "",
-    liking: "",
-    image: "",
-    assignedSide: "",
-    action: "",
-    responseSide: "",
-    responseSource: "",
-    isCorrectChoice: "",
-    reward: "",
-    feedbackPositive: "",
-    rtMs: "",
-    rating: "",
-    timestamp: ""
+    round: "", // 第几轮
+    difficulty_round: "", // easy=0, hard=1
+    state: "", // 刺激/图片的 ID
+    action: "", // 左0/右1
+    reward: "", // 正确1/错误0
+    liking: "", // L/D/N
+    liking_rate: "", // 实际评分
+    groupLabel: "", // 图片所属类别
+    rtMs: "", // 反应时
+    timestamp: "" // trial 时间戳
   });
 
   const behaviorRows = state.trials
     .filter((t) => t.responseSide)
     .map((t) => ({
       ...baseRow(),
-      record_type: "behavior",
       round: t.round,
-      trial_in_round: t.trialIndex,
-      difficulty_round: state.runInfo.difficultyRound,
-      difficulty: t.difficulty,
+      difficulty_round: t.difficultyRound,
       state: t.stateId,
-      groupId: t.groupId,
-      groupLabel: t.groupLabel,
-      liking_group: t.liking,
-      liking: t.likingBin,
-      image: t.image,
-      assignedSide: t.assignedSide,
       action: t.action,
-      responseSide: t.responseSide,
-      responseSource: t.responseSource,
-      isCorrectChoice: t.isCorrectChoice ? 1 : 0,
       reward: t.reward,
-      feedbackPositive: t.feedbackPositive ? 1 : 0,
+      liking: t.likingCode,
+      liking_rate: t.likingRate,
+      groupLabel: t.groupLabel,
       rtMs: t.rtMs,
       timestamp: t.timestamp
     }));
 
-  const ratingRows = state.ratings.map((r) => ({
-    ...baseRow(),
-    record_type: "rating",
-    liking_group: r.likingLabel,
-    liking: r.rating,
-    image: r.image,
-    groupId: r.groupId,
-    groupLabel: r.groupLabel,
-    timestamp: r.timestamp
-  }));
-
-  const allRows = [...behaviorRows, ...ratingRows];
+  const allRows = behaviorRows;
   if (allRows.length > 0) {
     downloadFile(toCSV(allRows), `subj-${state.runInfo.participantId}-all.csv`);
     statusLine("数据已导出（单一合并文件）。");
