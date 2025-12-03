@@ -443,6 +443,8 @@ function setup() {
   $("left-btn").addEventListener("click", () => handleChoice("left", "button"));
   $("right-btn").addEventListener("click", () => handleChoice("right", "button"));
   window.addEventListener("keydown", (e) => {
+    const tag = (e.target && e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return; // don't steal keys from form fields
     if (config.responseKeys.left.includes(e.key)) {
       e.preventDefault();
       handleChoice("left", "key");
