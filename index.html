@@ -1,0 +1,104 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>概率性强化学习实验（Liking × 难度）</title>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; line-height: 1.5; background: #f6f7fb; color: #222; }
+    h1 { margin-top: 0; }
+    .panel { background: #fff; border: 1px solid #e1e4ea; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.04); }
+    label { display: block; margin: 8px 0 4px; font-weight: 600; }
+    input, button { font-size: 15px; padding: 8px 10px; border-radius: 8px; border: 1px solid #d0d6e0; }
+    button { background: #1f7aec; color: #fff; cursor: pointer; border: none; transition: transform 0.05s ease, box-shadow 0.1s ease; }
+    button:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    button[disabled] { background: #9fb7dc; cursor: not-allowed; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .row > * { flex: 1 1 200px; }
+    #image-frame { display: flex; justify-content: center; align-items: center; min-height: 260px; border: 2px dashed #d6d8de; border-radius: 12px; background: #f0f3fa; margin: 12px 0; }
+    #image-frame img { max-width: 100%; max-height: 240px; }
+    #feedback { font-size: 20px; font-weight: 700; text-align: center; min-height: 30px; }
+    .status { color: #4a5568; font-size: 14px; }
+    #progress { height: 10px; background: #e5e7ef; border-radius: 8px; overflow: hidden; }
+    #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #1f7aec, #66d1ff); transition: width 0.2s ease; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #edf2ff; color: #1f4b99; font-size: 13px; margin-right: 6px; }
+    .muted { color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1 style="display:flex; justify-content:space-between; align-items:center;">
+    <span>概率性强化学习实验（Liking × 难度）</span>
+    <span class="pill">四轮固定：90@0.9 → 90@0.7 → 120@0.9 → 120@0.7</span>
+  </h1>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="participant-id">被试编号 / Participant ID</label>
+        <input id="participant-id" placeholder="e.g., P001">
+      </div>
+      <div>
+        <label for="session-label">实验批次标签（可选）</label>
+        <input id="session-label" placeholder="e.g., batch-A">
+      </div>
+    </div>
+    <p class="muted">两轮顺序固定：第1轮 3组×30，正确率0.9；第2轮 4组×30，正确率0.7。</p>
+    <div class="row">
+      <button id="start-rating">阶段1：开始图片评分</button>
+      <button id="start-experiment">阶段2：开始当前轮任务</button>
+      <button id="download-data">下载数据 (CSV)</button>
+    </div>
+    <div class="status" id="status-line">状态：等待开始</div>
+    <div class="status" id="round-line">当前轮次：1 / 4（完成后点击“开始当前轮任务”进入下一轮）</div>
+  </div>
+
+  <div class="panel" id="rating-panel">
+    <div class="pill">阶段1 图片打分</div>
+    <div id="rating-instructions" class="muted">点击“开始图片评分”后，依次呈现图片，请为愉悦度打 1-10 分。</div>
+    <div id="rating-frame" style="display:none;">
+      <div id="rating-image" style="display:flex; justify-content:center; align-items:center; min-height:200px; margin:12px 0;">
+        <img id="rating-img-tag" alt="rating stimulus" style="max-height:200px; max-width:100%;">
+      </div>
+      <label for="rating-slider">愉悦度评分 (1-10)</label>
+      <input id="rating-slider" type="range" min="1" max="10" step="1" value="5" style="width:100%;">
+      <div class="row">
+        <span id="rating-value" class="pill">当前评分：5</span>
+        <button id="rating-next">提交并下一张</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="experiment-panel">
+    <div class="pill">阶段2 判断图片对应方向键</div>
+    <div id="trial-meta" class="status">Trial info will appear here.</div>
+    <div id="image-frame">
+      <img id="stimulus-img" alt="stimulus will show here">
+    </div>
+    <div id="feedback"></div>
+    <div class="row">
+      <button id="left-btn">左键 (←)</button>
+      <button id="right-btn">右键 (→)</button>
+    </div>
+    <div style="margin-top:12px;">
+      <div id="progress"><div id="progress-bar"></div></div>
+    </div>
+    <div class="muted" style="margin-top:8px;">按键：左=ArrowLeft，右=ArrowRight。反馈概率由当前轮难度固定：easy 0.9 / hard 0.7。</div>
+  </div>
+
+  <div class="panel">
+    <div class="pill">被试指导</div>
+    <ol>
+      <li>我们的图片分为如下类别：酒精、婴儿、自然风光和小狗，其他带有客观意义上负面色彩的图片作为负面对照组，为一类，不含情绪色彩的图片作为中立对照组，为一类，每一轮测试中每一类对应的按键方向不同</li>
+      <li>可能会出现血腥内容，请预先做好心理准备</li>
+      <li>实验开始前务必输入被试编号，用以区分不同被试，实验过程最好一次成功，出现失误也需要继续完成整个流程</li>
+      <li>第一阶段中给图片打分根据你看到图片时的心情而定，请尽量真实反映你的感受，最好做出区分，少打5分（中立），否则为无效数据</li>
+      <li>第二阶段中，每一类图片都对应着按键左或者按键右（举例：小狗图片对应按键左，酒精图片对对应按键右，每个round的赋值都是随机的）被试者要根据选择按键之后的反馈猜测自己的作答是否正确（左键：←；右键：→）。</li>
+      <li>看到图片进行按键，系统会给出“正确/错误”反馈，系统的反馈存在一定的迷惑性，系统给出反馈的概率与本轮次难度相关，为0.9（简单）或0.7（困难）。</li>
+      <li>共 4 轮：第1/3轮反馈更可靠（90%），第2/4轮反馈较不稳定（70%），第3/4轮组别更多，任务更困难。每轮结束会自动提示，可再开始下一轮。</li>
+      <li>完成全部轮次后，请点击“下载数据 (CSV)”保存结果并通知实验员。</li>
+    </ol>
+  </div>
+
+  <script src="experiment.js"></script>
+</body>
+</html>
