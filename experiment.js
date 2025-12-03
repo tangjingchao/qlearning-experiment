@@ -3,8 +3,8 @@
 
 const config = {
   responseKeys: {
-    left: ["ArrowLeft", "a", "A"],
-    right: ["ArrowRight", "l", "L"]
+    left: ["ArrowLeft"],
+    right: ["ArrowRight"]
   },
   groups: [
     { id: "G1", label: "puppies", liking: "high", images: [
